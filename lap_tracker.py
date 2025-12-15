@@ -455,7 +455,7 @@ class LapTracker:
             print(f"❌ Error writing to CSV: {e}")
     
     def is_recent_scan(self, class_name: str) -> bool:
-        """Check if this class was scanned within the last minute"""
+        """Check if this class was scanned within the last 30 seconds"""
         now = datetime.now()
         if class_name in self.recent_scans:
             last_scan_time = self.recent_scans[class_name]
