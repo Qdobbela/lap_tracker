@@ -348,6 +348,46 @@ class LapTracker:
         # Run in thread to not block UI
         threading.Thread(target=restore_main, daemon=True).start()
     
+    def show_error_screen(self, input_text: str):
+        """Show orange error screen for unmapped codes for 1 second"""
+        # Hide main frame
+        self.main_frame.pack_forget()
+        
+        # Create error frame
+        error_frame = tk.Frame(self.root, bg='#ff8800')
+        error_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Error message
+        error_font = font.Font(family="Arial", size=60, weight="bold")
+        error_label = tk.Label(
+            error_frame,
+            text=f"CODE NIET GEVONDEN!\n{input_text}\n\nControleer de code",
+            font=error_font,
+            fg='white',
+            bg='#ff8800',
+            justify=tk.CENTER
+        )
+        error_label.pack(expand=True)
+        
+        # Update display
+        self.root.update()
+        
+        # Wait 1 second then restore main frame
+        def restore_main():
+            time.sleep(1)
+            error_frame.destroy()
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
+            self.input_var.set("")  # Clear input
+            self.input_entry.focus_set()  # Restore focus
+            self.status_label.config(text="Klaar voor invoer...")
+            
+            # Reset processing flag and clear last processed text after error screen
+            self.processing = False
+            self.last_processed_text = ""
+            
+        # Run in thread to not block UI
+        threading.Thread(target=restore_main, daemon=True).start()
+    
     def on_text_change(self, event=None):
         """Handle text changes in input field - auto-submit when text is entered"""
         # Small delay to allow for complete paste operation
@@ -499,24 +539,26 @@ class LapTracker:
         class_id = self.get_class_id_by_name(input_text)
         success = False
         
-        # Only add to Supabase if class found AND not a duplicate scan
-        if class_id and not is_duplicate:
+        # Handle different scenarios
+        if not class_id:
+            # Code not found - show orange error screen
+            print(f"❌ Input '{input_text}' (class: '{display_name}') not found")
+            csv_name = f"{input_text} → {display_name}" if input_text != display_name else display_name
+            self.add_lap_to_csv(csv_name, class_id, success, is_duplicate)
+            self.show_error_screen(input_text)
+        elif is_duplicate:
+            # Duplicate scan - log to CSV and show success with duplicate message
+            print(f"⏰ Duplicate scan for '{display_name}' within 1 minute - skipping Supabase, logging to CSV only")
+            csv_name = f"{input_text} → {display_name}" if input_text != display_name else display_name
+            self.add_lap_to_csv(csv_name, class_id, success, is_duplicate)
+            self.show_success_screen(f"{display_name}\n(Duplicate - niet geteld)")
+        else:
+            # Valid scan - add to Supabase and show success
             success = self.add_lap_to_supabase(class_id)
             self.update_recent_scan(display_name)  # Update timestamp for successful scans
             print(f"✅ Lap processed for '{display_name}'")
-        elif class_id and is_duplicate:
-            print(f"⏰ Duplicate scan for '{display_name}' within 1 minute - skipping Supabase, logging to CSV only")
-        else:
-            print(f"⚠️  Input '{input_text}' (class: '{display_name}') not found, logging to CSV only")
-        
-        # Always log to CSV with both input and resolved class name
-        csv_name = f"{input_text} → {display_name}" if input_text != display_name else display_name
-        self.add_lap_to_csv(csv_name, class_id, success, is_duplicate)
-        
-        # Show success screen with appropriate message
-        if is_duplicate:
-            self.show_success_screen(f"{display_name}\n(Duplicate - niet geteld)")
-        else:
+            csv_name = f"{input_text} → {display_name}" if input_text != display_name else display_name
+            self.add_lap_to_csv(csv_name, class_id, success, is_duplicate)
             self.show_success_screen(display_name)
     
     def quit_app(self, event=None):
