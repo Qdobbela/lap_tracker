@@ -390,13 +390,13 @@ class LapTracker:
     
     def on_text_change(self, event=None):
         """Handle text changes in input field - auto-submit when text is entered"""
-        # Small delay to allow for complete paste operation
-        self.root.after(100, self.check_and_process)
+        # Delay to allow scanner to complete 10-character input
+        self.root.after(250, self.check_and_process)
     
     def on_paste(self, event=None):
         """Handle paste events explicitly"""
-        # Delay processing to allow paste to complete
-        self.root.after(200, self.check_and_process)
+        # Delay processing to allow paste/scanner input to complete
+        self.root.after(250, self.check_and_process)
         
     def check_and_process(self):
         """Check if there's text and process it automatically"""
